@@ -1,4 +1,5 @@
 require("lib/access")
+require("lib/maxspeed")
 
 -- Begin of globals
 barrier_whitelist = { [""] = true, ["cycle_barrier"] = true, ["bollard"] = true, ["entrance"] = true, ["cattle_grid"] = true, ["border_control"] = true, ["toll_booth"] = true, ["sally_port"] = true, ["gate"] = true, ["no"] = true}
@@ -95,6 +96,13 @@ turn_penalty 			= 60
 turn_bias               = 1.4
 -- End of globals
 
+--modes
+mode_normal = 1
+mode_pushing = 2
+mode_ferry = 3
+mode_train = 4
+
+    
 function get_exceptions(vector)
 	for i,v in ipairs(restriction_exception_tags) do 
 		vector:Add(v)
@@ -126,7 +134,7 @@ function node_function (node)
 		end
 	end
 	
-	return 1
+	return true
 end
 
 function way_function (way)
@@ -144,18 +152,18 @@ function way_function (way)
 		(not man_made or man_made=='') and
     	(not public_transport or public_transport=='')
     	then
-    	return 0
+    	return false
     end
     
     -- don't route on ways or railways that are still under construction
     if highway=='construction' or railway=='construction' then
-        return 0
+        return false
     end
     
 	-- access
  	local access = Access.find_access_tag(way, access_tags_hierachy)
     if access_tag_blacklist[access] then
-		return 0
+		return false
     end
 
 
@@ -177,6 +185,9 @@ function way_function (way)
 	local area = way.tags:Find("area")
 	local foot = way.tags:Find("foot")
 	local surface = way.tags:Find("surface")
+	local foot_forward = way.tags:Find("foot:forward")
+	local foot_backward = way.tags:Find("foot:backward")
+	local bicycle = way.tags:Find("bicycle")
 
 	-- name	
 	if "" ~= ref and "" ~= name then
@@ -190,156 +201,147 @@ function way_function (way)
 		                                        -- this encoding scheme is excepted to be a temporary solution
 	end
 		
+	way.mode = mode_normal
+	
 	-- speed
     if route_speeds[route] then
 		-- ferries (doesn't cover routes tagged using relations)
-		way.direction = Way.bidirectional
+    	way.mode = mode_ferry
 		way.ignore_in_grid = true
 		if durationIsValid(duration) then
 			way.duration = math.max( 1, parseDuration(duration) )
 		else
 		 	way.speed = route_speeds[route]
 		end
-	elseif railway and platform_speeds[railway] then
+	elseif platform_speeds[railway] then
 		-- railway platforms (old tagging scheme)
 		way.speed = platform_speeds[railway]
 	elseif platform_speeds[public_transport] then
 		-- public_transport platforms (new tagging platform)
 		way.speed = platform_speeds[public_transport]
-    elseif railway and railway_speeds[railway] then
+    elseif railway_speeds[railway] then
 	 	-- railways
 		if access and access_tag_whitelist[access] then
+        	way.mode = mode_train
 			way.speed = railway_speeds[railway]		
-			way.direction = Way.bidirectional
 		end
-	elseif amenity and amenity_speeds[amenity] then
+	elseif amenity_speeds[amenity] then
 		-- parking areas
 		way.speed = amenity_speeds[amenity]
 	elseif bicycle_speeds[highway] then
 		-- regular ways
       	way.speed = bicycle_speeds[highway]
-	elseif access and access_tag_whitelist[access] then
+	elseif access_tag_whitelist[access] then
 	    -- unknown way, but valid access tag
 		way.speed = default_speed
 	else
 	    -- biking not allowed, maybe we can push our bike?
 	    -- essentially requires pedestrian profiling, for example foot=no mean we can't push a bike
-        -- TODO: if we can push, the way should be marked as pedestrion mode, but there's no way to do it yet from lua..
         if foot ~= 'no' then
 	        if pedestrian_speeds[highway] then
 	            -- pedestrian-only ways and areas
         		way.speed = pedestrian_speeds[highway]
+            	way.mode = mode_pushing
         	elseif man_made and man_made_speeds[man_made] then
             	-- man made structures
             	way.speed = man_made_speeds[man_made]
+            	way.mode = mode_pushing
             elseif foot == 'yes' then
                 way.speed = walking_speed
+            	way.mode = mode_pushing
+            elseif foot_forward == 'yes' then
+                way.forward.speed = walking_speed
+            	way.forward.mode = mode_pushing
+            	way.backward.mode = 0
+            elseif foot_backward == 'yes' then
+                way.backward.speed = walking_speed
+            	way.backward.mode = mode_pushing
+            	way.forward.mode = 0
             end
         end
     end
 		
 	-- direction
-	way.direction = Way.bidirectional
 	local impliedOneway = false
 	if junction == "roundabout" or highway == "motorway_link" or highway == "motorway" then
-		way.direction = Way.oneway
 		impliedOneway = true
 	end
 	
 	if onewayClass == "yes" or onewayClass == "1" or onewayClass == "true" then
-		way.direction = Way.oneway
+    	way.backward.mode = 0
 	elseif onewayClass == "no" or onewayClass == "0" or onewayClass == "false" then
-		way.direction = Way.bidirectional
+	    -- prevent implied oneway
 	elseif onewayClass == "-1" then
-		way.direction = Way.opposite
+    	way.forward.mode = 0
 	elseif oneway == "no" or oneway == "0" or oneway == "false" then
-		way.direction = Way.bidirectional
-	elseif cycleway and string.find(cycleway, "opposite") == 1 then
+	    -- prevent implied oneway
+	elseif string.find(cycleway, "opposite") == 1 then
 		if impliedOneway then
-			way.direction = Way.opposite
-		else
-			way.direction = Way.bidirectional
+        	way.forward.mode = 0
+        	way.backward.mode = mode_normal
 		end
-	elseif cycleway_left and cycleway_tags[cycleway_left] and cycleway_right and cycleway_tags[cycleway_right] then
-		way.direction = Way.bidirectional
-	elseif cycleway_left and cycleway_tags[cycleway_left] then
+	elseif cycleway_tags[cycleway_left] and cycleway_tags[cycleway_right] then
+	    -- prevent implied
+	elseif cycleway_tags[cycleway_left] then
 		if impliedOneway then
-			way.direction = Way.opposite
-		else
-			way.direction = Way.bidirectional
+        	way.forward.mode = 0
+        	way.backward.mode = mode_normal
 		end
-	elseif cycleway_right and cycleway_tags[cycleway_right] then
+	elseif cycleway_tags[cycleway_right] then
 		if impliedOneway then
-			way.direction = Way.oneway
-		else
-			way.direction = Way.bidirectional
+        	way.forward.mode = mode_normal
+        	way.backward.mode = 0
 		end
 	elseif oneway == "-1" then
-		way.direction = Way.opposite
-	elseif oneway == "yes" or oneway == "1" or oneway == "true" then
-		way.direction = Way.oneway
-	end
+		way.forward.mode = 0
+	elseif oneway == "yes" or oneway == "1" or oneway == "true" or impliedOneway then
+	    way.backward.mode = 0
+    end
 	
+    
 	-- pushing bikes
 	if bicycle_speeds[highway] or pedestrian_speeds[highway] then
-	    if foot ~= 'no' then
+	    if foot ~= "no" then
 	        if junction ~= "roundabout" then
-            	if way.direction == Way.oneway then
-            	    way.backward_speed = walking_speed
-                elseif way.direction == Way.opposite then
-                    way.backward_speed = walking_speed
-                    way.speed = way.speed
+            	if way.backward.mode == 0 then
+            	    way.backward.speed = walking_speed
+                	way.backward.mode = mode_pushing
+                elseif way.forward.mode == 0 then
+                    way.forward.speed = walking_speed
+                	way.forward.mode = mode_pushing
             	end
             end
         end
-        if way.backward_speed == way.speed then
-            -- TODO: no way yet to mark a way as pedestrian mode if forward/backward speeds are equal
-            way.direction = Way.bidirectional
-        end
     end
-
 	
-	-- cycleways
-	if cycleway and cycleway_tags[cycleway] then
-		way.speed = bicycle_speeds["cycleway"]
-	elseif cycleway_left and cycleway_tags[cycleway_left] then
-		way.speed = bicycle_speeds["cycleway"]
-	elseif cycleway_right and cycleway_tags[cycleway_right] then
-		way.speed = bicycle_speeds["cycleway"]
+	-- cycleway speed
+	if cycleway_tags[cycleway_right] then
+		way.forward.speed = bicycle_speeds["cycleway"]
+	elseif cycleway_tags[cycleway] then
+		way.forward.speed = bicycle_speeds["cycleway"]
+    end
+	if cycleway_tags[cycleway_left] then
+		way.backward.speed = bicycle_speeds["cycleway"]
+    elseif cycleway_tags[cycleway] then
+		way.backward.speed = bicycle_speeds["cycleway"]
 	end
     
+	-- dismount
+	if bicycle == "dismount" then
+        way.mode = mode_pushing
+        way.speed = walking_speed
+	end
+
     -- surfaces
-    if surface then
-        surface_speed = surface_speeds[surface]
-        if surface_speed then
-            way.speed = math.min(way.speed, surface_speed)
-            way.backward_speed  = math.min(way.backward_speed, surface_speed)
-        end
+    if surface_speeds[surface] then
+        way.forward.speed = math.min(way.forward.speed, surface_speeds[surface])
+        way.backward.speed  = math.min(way.backward.speed, surface_speeds[surface])
     end
 
 	-- maxspeed
-	-- TODO: maxspeed of backward direction
-	if take_minimum_of_speeds then
-		if maxspeed and maxspeed>0 then
-			way.speed = math.min(way.speed, maxspeed)
-		end
-	end
-
-  -- Override speed settings if explicit forward/backward maxspeeds are given
-    if maxspeed_forward ~= nil and maxspeed_forward > 0 then
-	if Way.bidirectional == way.direction then
-          way.backward_speed = way.speed
-        end
-        way.speed = maxspeed_forward
-    end
-    if maxspeed_backward ~= nil and maxspeed_backward > 0 then
-      way.backward_speed = maxspeed_backward
-    end
-
-
-	
-	way.type = 1
-	return 1
+    MaxSpeed.limit( way, maxspeed, maxspeed_forward, maxspeed_backward )
+    	
+	return true
 end
 
 function turn_function (angle)
