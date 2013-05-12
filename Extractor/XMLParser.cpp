@@ -59,7 +59,8 @@ bool XMLParser::Parse() {
 
 		if ( xmlStrEqual( currentName, ( const xmlChar* ) "way" ) == 1 ) {
 			ExtractionWay way = _ReadXMLWay( );
-			ParseWayInLua( way, luaState );
+            LuaRouteIterator   routes( way, wayToRouteMap, routeMap );
+			ParseWayInLua( way, routes, luaState );
 			extractor_callbacks->wayFunction(way);
 //			if(!extractor_callbacks->wayFunction(way))
 //				std::cerr << "[PBFParser] way not parsed" << std::endl;

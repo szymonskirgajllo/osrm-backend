@@ -32,6 +32,9 @@ extern "C" {
 #include "ExtractorCallbacks.h"
 #include "ScriptingEnvironment.h"
 #include "ExtractorCallbacks.h"
+#include "../DataStructures/LuaRouteIterator.h"
+
+class LuaRouteIterator;
 
 class BaseParser : boost::noncopyable {
 public:
@@ -41,7 +44,7 @@ public:
     virtual bool Parse() = 0;
 
     virtual void ParseNodeInLua(ImportNode& n, lua_State* luaStateForThread);
-    virtual void ParseWayInLua(ExtractionWay& n, lua_State* luaStateForThread);
+    virtual void ParseWayInLua(ExtractionWay& way, LuaRouteIterator& routes, lua_State* luaStateForThread);
     virtual void report_errors(lua_State *L, const int status) const;
 
 protected:   
@@ -58,6 +61,8 @@ protected:
     bool use_turn_restrictions;
     bool use_route_relations;
     std::vector<std::string> modes;
+    WayToRouteMap wayToRouteMap;
+    RouteMap routeMap;
 };
 
 #endif /* BASEPARSER_H_ */

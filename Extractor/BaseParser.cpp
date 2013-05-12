@@ -122,12 +122,12 @@ void BaseParser::ParseNodeInLua(ImportNode& n, lua_State* localLuaState) {
     }
 }
 
-void BaseParser::ParseWayInLua(ExtractionWay& w, lua_State* localLuaState) {
+void BaseParser::ParseWayInLua(ExtractionWay& w, LuaRouteIterator& routes, lua_State* localLuaState) {
     if(2 > w.path.size()) {
         return;
     }
     try {
-        luabind::call_function<void>( localLuaState, "way_function", boost::ref(w) );
+        luabind::call_function<void>( localLuaState, "way_function", boost::ref(w), boost::ref(routes) );
     } catch (const luabind::error &er) {
         lua_State* Ler=er.state();
         report_errors(Ler, -1);

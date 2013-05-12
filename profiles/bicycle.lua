@@ -287,9 +287,8 @@ function way_function (way, routes)
 		way.forward.mode = 0
 	elseif oneway == "yes" or oneway == "1" or oneway == "true" or impliedOneway then
 	    way.backward.mode = 0
-    end
-	
-    
+    end	
+  
 	-- pushing bikes
 	if bicycle_speeds[highway] or pedestrian_speeds[highway] then
 	    if foot ~= "no" then
@@ -323,31 +322,29 @@ function way_function (way, routes)
         way.speed = walking_speed
 	end
 
-    -- bicycle routes
+    -- routes
     local factor = 1
     local routeName = nil
-    
     while true do
     	local role, route = routes:Next()
         if route==nil then
             break
-        end
-        
+        end   
         if route.tags:Find("route")=='bicycle' then
             network = route.tags:Find("network")
             route_name = route.tags:Find("name")    -- TODO choose name if there are several routes
-            
+            local factor = 1
             -- until we have separate speed/impedance, we have to use speed,
             -- even though it will make travel times unrealistic
             if network == "rcn" then
-                factor = 1.2
+                factor = 1.1
             elseif network == "lcn" then
                 factor = 1.2
             end
+            way.forward.speed = way.forward.speed * factor
+            way.backward.speed = way.backward.speed * factor
         end
 	end
-    
-    way.speed = way.speed * factor 
 
     -- name
 	if "" ~= ref and "" ~= name then
@@ -364,16 +361,6 @@ function way_function (way, routes)
     		                                        -- this encoding scheme is excepted to be a temporary solution
 	    end
 	end
-
-  -- Override speed settings if explicit forward/backward maxspeeds are given
-    if maxspeed_forward ~= nil and maxspeed_forward > 0 then
-	if Way.bidirectional == way.direction then
-          way.backward_speed = way.speed
-        end
-        way.speed = maxspeed_forward
-    end
-    if maxspeed_backward ~= nil and maxspeed_backward > 0 then
-      way.backward_speed = maxspeed_backward
 
     -- surfaces
     if surface_speeds[surface] then

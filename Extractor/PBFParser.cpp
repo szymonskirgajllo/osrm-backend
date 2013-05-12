@@ -397,7 +397,8 @@ inline void PBFParser::parseWay(_ThreadData * threadData) {
     for(unsigned i = 0; i < endi_ways; ++i) {
         ExtractionWay & w = waysToParse[i];
         LuaRouteIterator   routes( w, wayToRouteMap, routeMap );
-  	    ParseWayInLua( w, scriptingEnvironment.getLuaStateForThreadID(omp_get_thread_num()) );        
+  	    ParseWayInLua( w, routes, scriptingEnvironment.getLuaStateForThreadID(omp_get_thread_num()) );        
+		extractor_callbacks->wayFunction(w);
     }
 }
 

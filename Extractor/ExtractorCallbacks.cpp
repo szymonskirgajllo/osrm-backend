@@ -63,8 +63,8 @@ bool ExtractorCallbacks::restrictionFunction(const _RawRestrictionContainer &r) 
 }
 
 /** warning: caller needs to take care of synchronization! */
-void ExtractorCallbacks::wayFunction(ExtractionWay &parsed_way) {
-    if((0 < parsed_way.forward.speed) || (0 < parsed_way.backward.speed) || (0 < parsed_way.duration)) { //Only true if the way is specified by the speed profile
+void ExtractorCallbacks::wayFunction(ExtractionWay &parsed_way) {   
+    if( (0 < parsed_way.forward.speed) || (0 < parsed_way.backward.speed) || (0 < parsed_way.duration)) { //Only true if the way is specified by the speed profile
         if(UINT_MAX == parsed_way.id){
             DEBUG("found bogus way with id: " << parsed_way.id << " of size " << parsed_way.path.size());
             return;
@@ -77,7 +77,7 @@ void ExtractorCallbacks::wayFunction(ExtractionWay &parsed_way) {
         }
 
         if( ((0<parsed_way.forward.mode) && (FLT_EPSILON >= fabs(-1. - parsed_way.forward.speed))) || 
-            ((0<parsed_way.backward .mode) && (FLT_EPSILON >= fabs(-1. - parsed_way.backward.speed)))
+            ((0<parsed_way.backward.mode) && (FLT_EPSILON >= fabs(-1. - parsed_way.backward.speed)))
                 ) {
             DEBUG("found way with bogus speed, id: " << parsed_way.id);
             return;

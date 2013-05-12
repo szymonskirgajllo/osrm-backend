@@ -1,5 +1,7 @@
 -- Testbot profile
 
+require("lib/maxspeed")
+
 -- Moves at fixed, well-known speeds, practical for testing speed and travel times:
 
 -- Primary road:	36km/h = 36000m/3600s = 100m/10s
@@ -64,7 +66,7 @@ function node_function (node)
 	return 1
 end
 
-function way_function (way, routes, numberOfNodesInWay)
+function way_function (way, routes)
 	local highway = way.tags:Find("highway")
 	local name = way.tags:Find("name")
 	local oneway = way.tags:Find("oneway")
@@ -81,13 +83,13 @@ function way_function (way, routes, numberOfNodesInWay)
     	way.forward.mode = 2
     	way.backward.mode = 2
 	else
-	    local speed = speed_profile[highway] or speed_profile['default']
+	    way.speed = speed_profile[highway] or speed_profile['default']
 
     	if highway == "river" then
         	way.forward.mode = 3
         	way.backward.mode = 4
-    		way.forward.speed = speed*1.5
-    		way.backward.speed = speed/1.5
+    		way.forward.speed = way.forward.speed*1.5
+    		way.backward.speed = way.backward.speed/1.5
         else
         	if highway == "steps" then
             	way.forward.mode = 5
@@ -96,8 +98,6 @@ function way_function (way, routes, numberOfNodesInWay)
         		way.forward.mode = 1
             	way.backward.mode = 1
         	end
-            way.forward.speed = speed
-    		way.backward.speed = speed
    	    end
         
         -- routes
@@ -124,29 +124,15 @@ function way_function (way, routes, numberOfNodesInWay)
                     factor = 4
                 end
                 if role ~= "backward" then
-        		    speed_forw = speed_forw*factor
+        		    way.forward.speed = way.forward.speed*factor
         		end
         		if role ~= "forward" then
-                    speed_back = speed_back*factor
+        		    way.backward.speed = way.backward.speed*factor
                 end
             end
     	end
 
-        if maxspeed_forward ~= nil and maxspeed_forward > 0 then
-			way.forward.speed = maxspeed_forward
-		else
-			if maxspeed ~= nil and maxspeed > 0 and way.forward.speed > maxspeed then
-				way.forward.speed = maxspeed
-			end
-		end
-		
-		if maxspeed_backward ~= nil and maxspeed_backward > 0 then
-			way.backward.speed = maxspeed_backward
-		else
-			if maxspeed ~=nil and maxspeed > 0 and way.backward.speed > maxspeed then
-				way.backward.speed = maxspeed
-			end
-		end  
+        MaxSpeed.limit( way, maxspeed, maxspeed_forward, maxspeed_backward )
 	end
 	
 	if oneway == "-1" then

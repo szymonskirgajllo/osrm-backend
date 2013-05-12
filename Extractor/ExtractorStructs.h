@@ -63,7 +63,7 @@ struct ExtractionWay {
     };
 
     ExtractionWay(unsigned _id) :
-            id(UINT_MAX),
+            id(_id),
         	nameID(UINT_MAX),
             duration(-1),
             access(true),

@@ -107,8 +107,6 @@ private:
     boost::shared_ptr<ConcurrentQueue < _ThreadData* > > threadDataQueue;
 
     std::vector<std::string> restriction_exceptions_vector;
-    WayToRouteMap wayToRouteMap;
-    RouteMap routeMap;
     ParsingStep parsingStep;
 };
 
