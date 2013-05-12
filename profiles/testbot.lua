@@ -6,10 +6,19 @@
 -- Secondary road:	18km/h = 18000m/3600s = 100m/20s
 -- Tertiary road:	12km/h = 12000m/3600s = 100m/30s
 
+-- modes:
+-- 1: normal
+-- 2: route
+-- 3: river downstream
+-- 4: river upstream
+-- 5: steps down
+-- 6: steps up
+
 speed_profile = { 
 	["primary"] = 36,
 	["secondary"] = 18,
 	["tertiary"] = 12,
+	["steps"] = 6,
 	["default"] = 24
 }
 
@@ -23,6 +32,14 @@ ignore_areas 			= true	-- future feature
 traffic_signal_penalty 	= 7		-- seconds
 u_turn_penalty 			= 20
 use_route_relations     = true
+
+modes = { "bot", "ferry", "downstream", "upstream" }
+
+function get_modes(vector)
+	for i,v in ipairs(modes) do 
+		vector:Add(v)
+	end
+end
 
 function limit_speed(speed, limits)
     -- don't use ipairs(), since it stops at the first nil value
@@ -61,15 +78,27 @@ function way_function (way, routes, numberOfNodesInWay)
 
   	if route ~= nil and durationIsValid(duration) then
 		way.duration = math.max( 1, parseDuration(duration) )
+    	way.forward.mode = 2
+    	way.backward.mode = 2
 	else
-	    local speed_forw = speed_profile[highway] or speed_profile['default']
-	    local speed_back = speed_forw
+	    local speed = speed_profile[highway] or speed_profile['default']
 
     	if highway == "river" then
-    		local temp_speed = speed_forw;
-    		speed_forw = temp_speed*1.5
-    		speed_back = temp_speed/1.5
-        end
+        	way.forward.mode = 3
+        	way.backward.mode = 4
+    		way.forward.speed = speed*1.5
+    		way.backward.speed = speed/1.5
+        else
+        	if highway == "steps" then
+            	way.forward.mode = 5
+            	way.backward.mode = 6
+       	    else
+        		way.forward.mode = 1
+            	way.backward.mode = 1
+        	end
+            way.forward.speed = speed
+    		way.backward.speed = speed
+   	    end
         
         -- routes
         local printed = false
@@ -102,39 +131,29 @@ function way_function (way, routes, numberOfNodesInWay)
                 end
             end
     	end
-         	
+
         if maxspeed_forward ~= nil and maxspeed_forward > 0 then
-			speed_forw = maxspeed_forward
+			way.forward.speed = maxspeed_forward
 		else
-			if maxspeed ~= nil and maxspeed > 0 and speed_forw > maxspeed then
-				speed_forw = maxspeed
+			if maxspeed ~= nil and maxspeed > 0 and way.forward.speed > maxspeed then
+				way.forward.speed = maxspeed
 			end
 		end
 		
 		if maxspeed_backward ~= nil and maxspeed_backward > 0 then
-			speed_back = maxspeed_backward
+			way.backward.speed = maxspeed_backward
 		else
-			if maxspeed ~=nil and maxspeed > 0 and speed_back > maxspeed then
-				speed_back = maxspeed
+			if maxspeed ~=nil and maxspeed > 0 and way.backward.speed > maxspeed then
+				way.backward.speed = maxspeed
 			end
-		end
-        
-        way.speed = speed_forw
-        if speed_back ~= way_forw then
-            way.backward_speed = speed_back
-        end
+		end  
 	end
 	
-	if oneway == "no" or oneway == "0" or oneway == "false" then
-		way.direction = Way.bidirectional
-	elseif oneway == "-1" then
-		way.direction = Way.opposite
+	if oneway == "-1" then
+		way.forward.mode = 0
 	elseif oneway == "yes" or oneway == "1" or oneway == "true" then
-		way.direction = Way.oneway
-	else
-		way.direction = Way.bidirectional
+		way.backward.mode = 0
 	end
 	
-	way.type = 1
 	return 1
 end

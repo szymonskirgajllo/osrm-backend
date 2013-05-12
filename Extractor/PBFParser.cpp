@@ -396,31 +396,8 @@ inline void PBFParser::parseWay(_ThreadData * threadData) {
 #pragma omp parallel for schedule ( guided )
     for(unsigned i = 0; i < endi_ways; ++i) {
         ExtractionWay & w = waysToParse[i];
-        /** Pass the unpacked way to the LUA call back **/
-        
         LuaRouteIterator   routes( w, wayToRouteMap, routeMap );
-            	
-        try {
-            luabind::call_function<int>(
-                scriptingEnvironment.getLuaStateForThreadID(omp_get_thread_num()),
-                "way_function",
-                boost::ref(w),
-                boost::ref(routes),
-                w.path.size()
-            );
-
-        } catch (const luabind::error &er) {
-            lua_State* Ler=er.state();
-            report_errors(Ler, -1);
-            ERR(er.what());
-        }
-                //                catch (...) {
-                //                    ERR("Unknown error!");
-                //                }
-    }
-
-    BOOST_FOREACH(ExtractionWay & w, waysToParse) {
-        extractor_callbacks->wayFunction(w);
+  	    ParseWayInLua( w, scriptingEnvironment.getLuaStateForThreadID(omp_get_thread_num()) );        
     }
 }
 

@@ -48,6 +48,7 @@ protected:
     virtual void ReadUseRestrictionsSetting();
     virtual void ReadRestrictionExceptions();
     virtual void ReadUseRouteRelationSetting();
+    virtual void ReadModes();
     virtual bool ShouldIgnoreRestriction(const std::string& except_tag_string) const;
     
     ExtractorCallbacks* extractor_callbacks;
@@ -56,6 +57,7 @@ protected:
     std::vector<std::string> restriction_exceptions;
     bool use_turn_restrictions;
     bool use_route_relations;
+    std::vector<std::string> modes;
 };
 
 #endif /* BASEPARSER_H_ */

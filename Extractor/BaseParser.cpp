@@ -29,6 +29,7 @@ use_route_relations(false) {
     ReadUseRestrictionsSetting();
     ReadRestrictionExceptions();
     ReadUseRouteRelationSetting();
+    ReadModes();
 }
 
 void BaseParser::ReadUseRestrictionsSetting() {
@@ -79,6 +80,28 @@ void BaseParser::ReadUseRouteRelationSetting() {
         INFO("Using route relations" );
     } else {
         INFO("Ignoring route relations" );
+    }
+}
+
+void BaseParser::ReadModes() {
+    if(lua_function_exists(luaState, "get_modes" )) {
+        //get list of modes
+        try {
+            luabind::call_function<void>(
+                luaState,
+                "get_modes",
+                boost::ref(modes)
+                );
+            BOOST_FOREACH(std::string & str, modes) {
+                INFO("mode found: " << str);
+            }
+        } catch (const luabind::error &er) {
+            lua_State* Ler=er.state();
+            report_errors(Ler, -1);
+            ERR(er.what());
+        }
+    } else {
+        INFO("Found no modes");
     }
 }
 
