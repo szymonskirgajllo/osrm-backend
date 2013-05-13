@@ -77,6 +77,7 @@ public:
 private:
     inline void ReadData();
     inline void ParseData();
+    inline void CleanQueue();
     inline void ParseStep(ParsingStep step);
     inline void parseDenseNode(_ThreadData * threadData);
     inline void parseNode(_ThreadData * );

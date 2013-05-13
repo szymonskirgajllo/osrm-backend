@@ -32,6 +32,8 @@ PBFParser::PBFParser(const char * fileName, ExtractorCallbacks* ec, ScriptingEnv
 		std::cerr << fileName << ": File not found." << std::endl;
 	}
 
+    threadDataQueue = boost::make_shared<ConcurrentQueue<_ThreadData*> >( 2500 ); /* Max 2500 items in queue, hardcoded. */
+
 #ifndef NDEBUG
 	blockCount = 0;
 	groupCount = 0;
@@ -43,11 +45,6 @@ PBFParser::~PBFParser() {
 		input.close();
 	}
 
-	// Clean up any leftover ThreadData objects in the queue
-	_ThreadData* td;
-	while (threadDataQueue->try_pop(td)) {
-		delete td;
-	}
 	google::protobuf::ShutdownProtobufLibrary();
 
 #ifndef NDEBUG
@@ -55,13 +52,18 @@ PBFParser::~PBFParser() {
 #endif
 }
 
+inline void PBFParser::CleanQueue() {
+    // Clean up any leftover ThreadData objects in the queue
+	_ThreadData* td;
+	while (threadDataQueue->try_pop(td)) {
+		delete td;
+	}
+}
+
 inline bool PBFParser::ReadHeader() {
 	input.clear();    
     input.seekg(0,std::ios_base::beg);
     
-    threadDataQueue = boost::make_shared<ConcurrentQueue<_ThreadData*> >( 2500 ); /* Max 2500 items in queue, hardcoded. */
-	
-	
 	_ThreadData initData;
 	/** read Header */
 	if(!readPBFBlobHeader(input, &initData)) {
@@ -164,6 +166,8 @@ inline void PBFParser::ParseStep(ParsingStep step) {
 	// Wait for the threads to finish
 	readThread.join();
 	parseThread.join();
+	
+    CleanQueue();
 }
 
 inline bool PBFParser::Parse() {
