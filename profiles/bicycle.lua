@@ -323,8 +323,12 @@ function way_function (way, routes)
 	end
 
     -- routes
-    local factor = 1
-    local routeName = nil
+    local route_name = nil
+    local factor_forward = 1.0
+    local factor_backward = 1.0
+    local ncn_name = nil
+    local rcn_name = nil
+    local lcn_name = nil
     while true do
     	local role, route = routes:Next()
         if route==nil then
@@ -332,19 +336,32 @@ function way_function (way, routes)
         end   
         if route.tags:Find("route")=='bicycle' then
             network = route.tags:Find("network")
-            route_name = route.tags:Find("name")    -- TODO choose name if there are several routes
-            local factor = 1
+            local factor = nil
+            local route_name = route.tags:Find("name")
             -- until we have separate speed/impedance, we have to use speed,
             -- even though it will make travel times unrealistic
-            if network == "rcn" then
+            if network == "ncn" then
+                factor = 1.05
+                ncn_name = route_name
+            elseif network == "rcn" then
                 factor = 1.1
+                rcn_name = route_name
             elseif network == "lcn" then
-                factor = 1.2
+                factor = 1.15
+                lcn_name = route_name
             end
-            way.forward.speed = way.forward.speed * factor
-            way.backward.speed = way.backward.speed * factor
+            if factor then
+                if role ~= "backward" then
+        		    factor_forward = math.max( factor_forward, factor )
+        		end
+        		if role ~= "forward" then
+        		    factor_backward = math.max( factor_backward, factor )
+                end
+            end
         end
 	end
+	way.forward.speed = way.forward.speed*factor_forward
+	way.backward.speed = way.backward.speed*factor_backward
 
     -- name
 	if "" ~= ref and "" ~= name then
@@ -354,8 +371,12 @@ function way_function (way, routes)
 	elseif "" ~= name then
 		way.name = name
 	else
-        if route_name then
-            way.name = route_name
+        if lcn_name then
+            way.name = lcn_name
+        elseif rcn_name then
+            way.name = rcn_name
+        elseif ncn_name then
+            way.name = ncn_name
         else
     		way.name = "{highway:"..highway.."}"	-- if no name exists, use way type
     		                                        -- this encoding scheme is excepted to be a temporary solution
