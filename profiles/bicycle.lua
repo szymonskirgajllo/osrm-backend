@@ -323,7 +323,6 @@ function way_function (way, routes)
 	end
 
     -- routes
-    local route_name = nil
     local factor_forward = 1.0
     local factor_backward = 1.0
     local ncn_name = nil
@@ -364,19 +363,25 @@ function way_function (way, routes)
 	way.backward.speed = way.backward.speed*factor_backward
 
     -- name
-	if "" ~= ref and "" ~= name then
+    local route_name = nil
+    if ncn_name then
+        route_name = ncn_name
+    elseif rcn_name then
+        route_name = rcn_name
+    elseif lcn_name then
+        route_name = lcn_name
+    end
+	if "" ~= name and "" ~= ref and name ~= ref then
 		way.name = name .. ' / ' .. ref
+    elseif "" ~= name and route_name and name ~= route_name then
+		way.name = name .. ' / ' .. route_name
     elseif "" ~= ref then
     	way.name = ref
 	elseif "" ~= name then
 		way.name = name
 	else
-        if lcn_name then
-            way.name = lcn_name
-        elseif rcn_name then
-            way.name = rcn_name
-        elseif ncn_name then
-            way.name = ncn_name
+        if route_name then
+            way.name = route_name
         else
     		way.name = "{highway:"..highway.."}"	-- if no name exists, use way type
     		                                        -- this encoding scheme is excepted to be a temporary solution
