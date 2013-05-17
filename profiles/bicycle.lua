@@ -364,12 +364,12 @@ function way_function (way, routes)
 
     -- name
     local route_name = nil
-    if ncn_name then
-        route_name = ncn_name
+    if lcn_name then
+        route_name = lcn_name
     elseif rcn_name then
         route_name = rcn_name
-    elseif lcn_name then
-        route_name = lcn_name
+    elseif ncn_name then
+        route_name = ncn_name
     end
 	if "" ~= name and "" ~= ref and name ~= ref then
 		way.name = name .. ' / ' .. ref
