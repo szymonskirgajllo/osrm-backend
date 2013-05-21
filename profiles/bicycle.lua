@@ -289,6 +289,12 @@ function way_function (way, routes)
 	    way.backward.mode = 0
     end	
   
+	-- dismount
+	if bicycle == "dismount" then
+        way.mode = mode_pushing
+        way.speed = walking_speed
+	end
+
 	-- pushing bikes
 	if bicycle_speeds[highway] or pedestrian_speeds[highway] then
 	    if foot ~= "no" then
@@ -305,23 +311,21 @@ function way_function (way, routes)
     end
 	
 	-- cycleway speed
-	if cycleway_tags[cycleway_right] then
-		way.forward.speed = bicycle_speeds["cycleway"]
-	elseif cycleway_tags[cycleway] then
-		way.forward.speed = bicycle_speeds["cycleway"]
+	if way.forward.mode == mode_normal then
+	    if cycleway_tags[cycleway_right] then
+    		way.forward.speed = bicycle_speeds["cycleway"]
+    	elseif cycleway_tags[cycleway] then
+    		way.forward.speed = bicycle_speeds["cycleway"]
+        end
     end
-	if cycleway_tags[cycleway_left] then
-		way.backward.speed = bicycle_speeds["cycleway"]
-    elseif cycleway_tags[cycleway] then
-		way.backward.speed = bicycle_speeds["cycleway"]
-	end
+	if way.backward.mode == mode_normal then
+    	if cycleway_tags[cycleway_left] then
+    		way.backward.speed = bicycle_speeds["cycleway"]
+        elseif cycleway_tags[cycleway] then
+    		way.backward.speed = bicycle_speeds["cycleway"]
+    	end
+    end
     
-	-- dismount
-	if bicycle == "dismount" then
-        way.mode = mode_pushing
-        way.speed = walking_speed
-	end
-
     -- routes
     local factor_forward = 1.0
     local factor_backward = 1.0
@@ -359,18 +363,14 @@ function way_function (way, routes)
             end
         end
 	end
-	way.forward.speed = way.forward.speed*factor_forward
-	way.backward.speed = way.backward.speed*factor_backward
-
-    -- name
-    local route_name = nil
-    if lcn_name then
-        route_name = lcn_name
-    elseif rcn_name then
-        route_name = rcn_name
-    elseif ncn_name then
-        route_name = ncn_name
+	if way.forward.mode == mode_normal then
+	    way.forward.speed = way.forward.speed*factor_forward
+	end
+	if way.backward.mode == mode_normal then
+        way.backward.speed = way.backward.speed*factor_backward
     end
+    
+    -- name
 	if "" ~= name and "" ~= ref and name ~= ref then
 		way.name = name .. ' / ' .. ref
     elseif "" ~= name and route_name and name ~= route_name then
@@ -379,14 +379,16 @@ function way_function (way, routes)
     	way.name = ref
 	elseif "" ~= name then
 		way.name = name
-	else
-        if route_name then
-            way.name = route_name
-        else
-    		way.name = "{highway:"..highway.."}"	-- if no name exists, use way type
-    		                                        -- this encoding scheme is excepted to be a temporary solution
-	    end
-	end
+    elseif lcn_name then
+        way.name = lcn_name
+    elseif rcn_name then
+        way.name = rcn_name
+    elseif ncn_name then
+        way.name = ncn_name
+    else
+		way.name = "{highway:"..highway.."}"	-- if no name exists, use way type
+		                                        -- this encoding scheme is excepted to be a temporary solution
+    end
 
     -- surfaces
     if surface_speeds[surface] then
