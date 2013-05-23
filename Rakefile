@@ -6,7 +6,7 @@ require 'sys/proctable'
 
 BUILD_FOLDER = 'build'
 DATA_FOLDER = 'sandbox'
-PROFILE = 'bicycle'
+#profile = 'bicycle'
 OSRM_PORT = 5000
 PROFILES_FOLDER = '../profiles'
 
@@ -19,18 +19,21 @@ areas = {
   :frd => { :country => 'denmark', :bbox => 'top=55.7007 left=12.4765 bottom=55.6576 right=12.5698' },
   :regh => { :country => 'denmark', :bbox => 'top=56.164 left=11.792 bottom=55.403 right=12.731' },
   :denmark => { :country => 'denmark', :bbox => nil },
+  :cargobike => { :country => 'denmark', :bbox => nil },
   :skaane => { :country => 'sweden', :bbox => 'top=56.55 left=12.4 bottom=55.3 right=14.6' }
 }
 
 
 
 osm_data_area_name = ARGV[1] ? ARGV[1].to_s.to_sym : :kbh
+profile = ARGV[2] ? ARGV[2].to_s : 'bicycle'
 raise "Unknown data area." unless areas[osm_data_area_name]
 osm_data_country = areas[osm_data_area_name][:country]
 osm_data_area_bbox = areas[osm_data_area_name][:bbox]
 
 
 task osm_data_area_name.to_sym {}   #define empty task to prevent rake from whining. will break if area has same name as a task
+task profile.to_sym {}   #define empty task to prevent rake from whining. will break if area has same name as a task
 
 
 def each_process name, &block
@@ -120,9 +123,9 @@ end
 desc "Reprocess OSM data."
 task :process => :setup do
   Dir.chdir DATA_FOLDER do
-    raise "Error while extracting data." unless system "../#{BUILD_FOLDER}/osrm-extract #{osm_data_area_name}.osm.pbf #{PROFILES_FOLDER}/#{PROFILE}.lua"
+    raise "Error while extracting data." unless system "../#{BUILD_FOLDER}/osrm-extract #{osm_data_area_name}.osm.pbf #{PROFILES_FOLDER}/#{profile}.lua"
     puts
-    raise "Error while preparing data." unless system "../#{BUILD_FOLDER}/osrm-prepare #{osm_data_area_name}.osrm #{osm_data_area_name}.osrm.restrictions #{PROFILES_FOLDER}/#{PROFILE}.lua"
+    raise "Error while preparing data." unless system "../#{BUILD_FOLDER}/osrm-prepare #{osm_data_area_name}.osrm #{osm_data_area_name}.osrm.restrictions #{PROFILES_FOLDER}/#{profile}.lua"
     puts
   end
 end
@@ -130,14 +133,14 @@ end
 desc "Extract OSM data."
 task :extract => :setup do
   Dir.chdir DATA_FOLDER do
-    raise "Error while extracting data." unless system "../#{BUILD_FOLDER}/osrm-extract #{osm_data_area_name}.osm.pbf ../profiles/#{PROFILE}.lua"
+    raise "Error while extracting data." unless system "../#{BUILD_FOLDER}/osrm-extract #{osm_data_area_name}.osm.pbf ../profiles/#{profile}.lua"
   end
 end
 
 desc "Prepare OSM data."
 task :prepare => :setup do
   Dir.chdir DATA_FOLDER do
-    raise "Error while preparing data." unless system "../#{BUILD_FOLDER}/osrm-prepare #{osm_data_area_name}.osrm #{osm_data_area_name}.osrm.restrictions ../profiles/#{PROFILE}.lua"
+    raise "Error while preparing data." unless system "../#{BUILD_FOLDER}/osrm-prepare #{osm_data_area_name}.osrm #{osm_data_area_name}.osrm.restrictions ../profiles/#{profile}.lua"
   end
 end
 
