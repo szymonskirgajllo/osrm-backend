@@ -16,20 +16,20 @@ default_speed = 10
 walking_speed = 2
 
 bicycle_speeds = { 
-	["cycleway"] = default_speed,
-	["primary"] = default_speed * 0.1,
-	["primary_link"] = default_speed * 0.1,
-	["secondary"] = default_speed * 0.1,
-	["secondary_link"] = default_speed * 0.1,
-	["tertiary"] = default_speed * 0.1,
-	["tertiary_link"] = default_speed * 0.1,
+	["cycleway"] = default_speed * 1.2,
+	["primary"] = default_speed,
+	["primary_link"] = default_speed,
+	["secondary"] = default_speed,
+	["secondary_link"] = default_speed,
+	["tertiary"] = default_speed,
+	["tertiary_link"] = default_speed,
 	["residential"] = default_speed,
 	["unclassified"] = default_speed,
 	["living_street"] = default_speed,
 	["road"] = default_speed,
 	["service"] = default_speed,
-	["track"] = 12,
-	["path"] = 12
+	["track"] = default_speed * 0.2,
+	["path"] = default_speed * 0.2
 	--["footway"] = 12,
 	--["pedestrian"] = 12,
 }
@@ -66,21 +66,20 @@ route_speeds = {
 }
 
 surface_speeds = { 
-	["cobblestone:flattened"] = 10,
-	["paving_stones"] = 10,
-	["compacted"] = 10,
-	["cobblestone"] = 6,
-	["unpaved"] = 6,
-	["fine_gravel"] = 6,
-	["gravel"] = 6,
-	["fine_gravel"] = 6,
-	["pebbelstone"] = 6,
-	["ground"] = 6,
-	["dirt"] = 6,
-	["earth"] = 6,
-	["grass"] = 6,
-	["mud"] = 3,
-	["sand"] = 3	
+	["cobblestone:flattened"] = default_speed*0.8,
+	["paving_stones"] = default_speed*0.8,
+	["compacted"] = default_speed*0.2,
+	["cobblestone"] = default_speed*0.2,
+	["unpaved"] = default_speed*0.2,
+	["fine_gravel"] = default_speed*0.2,
+	["gravel"] = default_speed*0.2,
+	["pebbelstone"] = default_speed*0.2,
+	["ground"] = default_speed*0.2,
+	["dirt"] = default_speed*0.2,
+	["earth"] = default_speed*0.2,
+	["grass"] = default_speed*0.2,
+	["mud"] = default_speed*0.1,
+	["sand"] = default_speed*0.1	
 }
 
 take_minimum_of_speeds 	= true
@@ -89,9 +88,9 @@ obey_bollards 			= false
 use_restrictions 		= true
 ignore_areas 			= true -- future feature
 traffic_signal_penalty 	= 5
-u_turn_penalty 			= 20
+u_turn_penalty 			= 40
 use_turn_restrictions   = false
-turn_penalty 			= 60
+turn_penalty 			= 120
 turn_bias               = 1.4
 use_route_relations     = true
 
@@ -224,6 +223,31 @@ function way_function (way, routes)
 	elseif access_tag_whitelist[access] then
 	    -- unknown way, but valid access tag
 		way.speed = default_speed
+	else
+	    -- biking not allowed, maybe we can push our bike?
+	    -- essentially requires pedestrian profiling, for example foot=no mean we can't push a bike
+        if foot ~= 'no' then
+	        if pedestrian_speeds[highway] then
+	            -- pedestrian-only ways and areas
+        		way.speed = pedestrian_speeds[highway]
+            	way.mode = mode_pushing
+        	elseif man_made and man_made_speeds[man_made] then
+            	-- man made structures
+            	way.speed = man_made_speeds[man_made]
+            	way.mode = mode_pushing
+            elseif foot == 'yes' then
+                way.speed = walking_speed
+            	way.mode = mode_pushing
+            elseif foot_forward == 'yes' then
+                way.forward.speed = walking_speed
+            	way.forward.mode = mode_pushing
+            	way.backward.mode = 0
+            elseif foot_backward == 'yes' then
+                way.backward.speed = walking_speed
+            	way.backward.mode = mode_pushing
+            	way.forward.mode = 0
+            end
+        end
     end
 		
 	-- direction
@@ -269,7 +293,36 @@ function way_function (way, routes)
         way.speed = walking_speed
 	end
 
+	-- pushing bikes
+	if bicycle_speeds[highway] or pedestrian_speeds[highway] then
+	    if foot ~= "no" then
+	        if junction ~= "roundabout" then
+            	if way.backward.mode == 0 then
+            	    way.backward.speed = walking_speed
+                	way.backward.mode = mode_pushing
+                elseif way.forward.mode == 0 then
+                    way.forward.speed = walking_speed
+                	way.forward.mode = mode_pushing
+            	end
+            end
+        end
+    end
 	
+	-- cycleway speed
+	if way.forward.mode == mode_normal then
+	    if cycleway_tags[cycleway_right] then
+    		way.forward.speed = bicycle_speeds["cycleway"]
+    	elseif cycleway_tags[cycleway] then
+    		way.forward.speed = bicycle_speeds["cycleway"]
+        end
+    end
+	if way.backward.mode == mode_normal then
+    	if cycleway_tags[cycleway_left] then
+    		way.backward.speed = bicycle_speeds["cycleway"]
+        elseif cycleway_tags[cycleway] then
+    		way.backward.speed = bicycle_speeds["cycleway"]
+    	end
+    end
     
     -- routes
     local factor_forward = 1.0
