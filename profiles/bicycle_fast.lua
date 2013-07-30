@@ -190,10 +190,14 @@ function way_function (way, routes)
 	local foot_forward = way.tags:Find("foot:forward")
 	local foot_backward = way.tags:Find("foot:backward")
 	local bicycle = way.tags:Find("bicycle")
-
 		
-	way.mode = mode_normal
+	way.mode = mode_normal;
 	
+    -- roundabout handling
+	if "roundabout" == junction then
+	  way.roundabout = true;
+	end
+
 	-- speed
     if route_speeds[route] then
 		-- ferries (doesn't cover routes tagged using relations)
