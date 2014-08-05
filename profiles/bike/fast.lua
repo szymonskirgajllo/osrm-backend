@@ -1,5 +1,5 @@
-require("lib/access")
-require("lib/maxspeed")
+require("../lib/access")
+require("../lib/maxspeed")
 
 -- Begin of globals
 barrier_whitelist = { [""] = true, ["cycle_barrier"] = true, ["bollard"] = true, ["entrance"] = true, ["cattle_grid"] = true, ["border_control"] = true, ["toll_booth"] = true, ["sally_port"] = true, ["gate"] = true, ["no"] = true}
